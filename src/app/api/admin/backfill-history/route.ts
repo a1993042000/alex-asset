@@ -65,9 +65,14 @@ export async function POST() {
 
     const priceByTickerByDate = new Map<string, Map<string, number>>(); // ticker -> date -> close
     const fetchedTickers: string[] = [];
+    const failedTickers: { ticker: string; reason: string }[] = [];
     for (const { ticker, market } of uniqueTickers.values()) {
         try {
             const rows = await fetchHistorical(ticker, market, earliest, today);
+            if (rows.length === 0) {
+                failedTickers.push({ ticker, reason: 'no historical data returned' });
+                continue;
+            }
             const dateMap = new Map<string, number>();
             for (const r of rows) dateMap.set(r.date, r.close);
             priceByTickerByDate.set(ticker, dateMap);
@@ -79,12 +84,10 @@ export async function POST() {
                 close_price: r.close,
                 updated_at: new Date().toISOString(),
             }));
-            if (upsertRows.length > 0) {
-                await supabase.from('asset_daily_prices').upsert(upsertRows, { onConflict: 'ticker,date' });
-            }
+            await supabase.from('asset_daily_prices').upsert(upsertRows, { onConflict: 'ticker,date' });
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
-            return NextResponse.json({ error: `historical fetch failed for ${ticker}: ${msg}` }, { status: 502 });
+            failedTickers.push({ ticker, reason: msg });
         }
     }
 
@@ -186,5 +189,6 @@ export async function POST() {
         to: today,
         days: snapshots.length,
         tickers_fetched: fetchedTickers,
+        tickers_failed: failedTickers,
     });
 }
