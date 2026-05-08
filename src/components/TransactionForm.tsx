@@ -6,14 +6,6 @@ import { createTransaction } from '@/app/actions';
 import { useRouter } from 'next/navigation';
 import type { Action, Currency, Market } from '@/lib/types';
 
-function todayTaipeiCompact(): string {
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Taipei',
-        year: 'numeric', month: '2-digit', day: '2-digit',
-    });
-    return fmt.format(new Date()).replaceAll('-', ''); // YYYYMMDD
-}
-
 function parseCompactDate(s: string): string | null {
     const m = s.trim().match(/^(\d{4})(\d{2})(\d{2})$/);
     if (!m) return null;
@@ -82,12 +74,7 @@ export default function TransactionForm() {
                 setSuccess(`已新增 ${ticker} ${action === 'buy' ? '買進' : '賣出'} ${shares}`);
                 router.refresh();
                 formRef.current?.reset();
-                // restore today as default date and re-focus for rapid entry
-                if (dateRef.current) {
-                    dateRef.current.value = todayTaipeiCompact();
-                    dateRef.current.focus();
-                    dateRef.current.select();
-                }
+                dateRef.current?.focus();
             }
         });
     }
@@ -113,7 +100,6 @@ export default function TransactionForm() {
                         pattern="\d{8}"
                         maxLength={8}
                         autoComplete="off"
-                        defaultValue={todayTaipeiCompact()}
                         placeholder="YYYYMMDD"
                         required
                         className={`${baseInput} w-full font-mono text-sm`}
@@ -189,10 +175,6 @@ export default function TransactionForm() {
                 </div>
             )}
 
-            <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
-                順序：<span className="font-mono text-zinc-400">日期 → 代號 → B/S → 股數 → 單價</span>，按 Tab 切換欄位、Enter 送出。
-                市場由代號自動判斷（開頭數字＝台股，字母＝美股）。
-            </p>
         </div>
     );
 }
