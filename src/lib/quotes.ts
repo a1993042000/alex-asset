@@ -87,15 +87,38 @@ async function fetchOneLatest(symbol: string): Promise<QuoteResult | null> {
 }
 
 /**
+ * Try Yahoo with `.TW` first; if that returns no data, fall back to `.TWO`
+ * (上櫃/櫃買 stocks). For US tickers no fallback is attempted.
+ */
+async function tryWithTwFallback<T>(
+    primarySymbol: string,
+    fetcher: (symbol: string) => Promise<T | null | undefined>,
+    isEmpty: (v: T | null | undefined) => boolean,
+): Promise<T | null> {
+    const first = await fetcher(primarySymbol);
+    if (!isEmpty(first)) return first as T;
+    if (primarySymbol.endsWith('.TW')) {
+        const alt = primarySymbol.slice(0, -3) + '.TWO';
+        const second = await fetcher(alt);
+        if (!isEmpty(second)) return second as T;
+    }
+    return null;
+}
+
+/**
  * Fetch latest close prices for the given tickers + USD/TWD FX rate.
  * Each ticker is fetched in parallel; failures for individual tickers are skipped.
  */
 export async function fetchLatestQuotes(tickers: TickerKey[]): Promise<QuoteResult[]> {
-    const symbols = [
-        ...tickers.map((t) => toYahooSymbol(t.ticker, t.market)),
-        YAHOO_FX_SYMBOL,
-    ];
-    const settled = await Promise.allSettled(symbols.map((s) => fetchOneLatest(s)));
+    const stockJobs = tickers.map((t) =>
+        tryWithTwFallback(
+            toYahooSymbol(t.ticker, t.market),
+            (s) => fetchOneLatest(s),
+            (v) => v == null,
+        ),
+    );
+    const fxJob = fetchOneLatest(YAHOO_FX_SYMBOL);
+    const settled = await Promise.allSettled([...stockJobs, fxJob]);
     const out: QuoteResult[] = [];
     for (const r of settled) {
         if (r.status === 'fulfilled' && r.value) out.push(r.value);
@@ -110,7 +133,12 @@ export async function fetchHistorical(
     to: string,
 ): Promise<{ date: string; close: number }[]> {
     const symbol = toYahooSymbol(ticker, market);
-    return fetchHistoricalRaw(symbol, from, to);
+    const result = await tryWithTwFallback(
+        symbol,
+        (s) => fetchHistoricalRaw(s, from, to),
+        (v) => !v || v.length === 0,
+    );
+    return result ?? [];
 }
 
 export async function fetchHistoricalFx(from: string, to: string) {
