@@ -5,6 +5,7 @@ import type { PositionRow } from '@/lib/types';
 const ntd = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 });
 const ntdSigned = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0, signDisplay: 'exceptZero' });
 const num4 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4, minimumFractionDigits: 2 });
+const intShares = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
 interface Props {
     positions: PositionRow[];
@@ -50,7 +51,7 @@ export default function PositionsTable({ positions }: Props) {
                             </div>
                             <div className="mt-1.5 flex justify-between text-xs text-zinc-500">
                                 <div>
-                                    {num4.format(p.shares)} 股 × {p.last_price != null ? num4.format(p.last_price) : '—'} {p.currency}
+                                    {intShares.format(p.shares)} 股 × {p.last_price != null ? num4.format(p.last_price) : '—'} {p.currency}
                                 </div>
                                 <div>
                                     成本 {num4.format(p.avg_cost)} {p.currency}

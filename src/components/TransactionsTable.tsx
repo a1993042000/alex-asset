@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import type { Transaction } from '@/lib/types';
 
 const num4 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4, minimumFractionDigits: 2 });
+const intShares = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
 export default function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
     const router = useRouter();
@@ -51,7 +52,7 @@ export default function TransactionsTable({ transactions }: { transactions: Tran
                                 </span>
                             </div>
                             <div className="mt-1 text-xs text-zinc-400">
-                                {t.trade_date} ・ {num4.format(t.shares)} × {num4.format(t.price)} {t.currency}
+                                {t.trade_date} ・ {intShares.format(t.shares)} × {num4.format(t.price)} {t.currency}
                             </div>
                         </div>
                         <div className="text-right text-sm font-medium text-zinc-200">
