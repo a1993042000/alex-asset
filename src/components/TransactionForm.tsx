@@ -1,49 +1,75 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { Plus } from 'lucide-react';
 import { createTransaction } from '@/app/actions';
 import { useRouter } from 'next/navigation';
 import type { Action, Currency, Market } from '@/lib/types';
 
-function todayTaipei(): string {
+function todayTaipeiCompact(): string {
     const fmt = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Taipei',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
+        year: 'numeric', month: '2-digit', day: '2-digit',
     });
-    return fmt.format(new Date()); // YYYY-MM-DD
+    return fmt.format(new Date()).replaceAll('-', ''); // YYYYMMDD
+}
+
+function parseCompactDate(s: string): string | null {
+    const m = s.trim().match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (!m) return null;
+    const [, y, mo, d] = m;
+    const iso = `${y}-${mo}-${d}`;
+    const date = new Date(iso + 'T00:00:00Z');
+    if (Number.isNaN(date.getTime())) return null;
+    if (date.toISOString().slice(0, 10) !== iso) return null; // rejects bad days like 02/30
+    return iso;
+}
+
+function detectMarket(ticker: string): Market {
+    return /^\d/.test(ticker.trim()) ? 'TW' : 'US';
+}
+
+function parseAction(s: string): Action | null {
+    const c = s.trim().toUpperCase();
+    if (c === 'B') return 'buy';
+    if (c === 'S') return 'sell';
+    return null;
 }
 
 export default function TransactionForm() {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
-    const [market, setMarket] = useState<Market>('US');
-    const [action, setAction] = useState<Action>('buy');
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const formRef = useRef<HTMLFormElement>(null);
+    const dateRef = useRef<HTMLInputElement>(null);
 
     function handleSubmit(formData: FormData) {
         setError(null);
         setSuccess(null);
 
-        const ticker = (formData.get('ticker') as string)?.trim();
-        const sharesStr = formData.get('shares') as string;
-        const priceStr = formData.get('price') as string;
-        const tradeDate = (formData.get('trade_date') as string) || todayTaipei();
+        const dateStr = (formData.get('date') as string) || '';
+        const ticker = ((formData.get('ticker') as string) || '').trim().toUpperCase();
+        const actionStr = (formData.get('action') as string) || '';
+        const sharesStr = (formData.get('shares') as string) || '';
+        const priceStr = (formData.get('price') as string) || '';
 
+        const trade_date = parseCompactDate(dateStr);
+        if (!trade_date) return setError('日期格式錯誤（YYYYMMDD）');
         if (!ticker) return setError('請輸入標的代號');
+        const action = parseAction(actionStr);
+        if (!action) return setError('買賣只能填 B 或 S');
         const shares = parseFloat(sharesStr);
-        const price = parseFloat(priceStr);
         if (!Number.isFinite(shares) || shares <= 0) return setError('股數需為正數');
+        const price = parseFloat(priceStr);
         if (!Number.isFinite(price) || price <= 0) return setError('單價需為正數');
 
+        const market = detectMarket(ticker);
         const currency: Currency = market === 'US' ? 'USD' : 'TWD';
 
         startTransition(async () => {
             const res = await createTransaction({
-                trade_date: tradeDate,
+                trade_date,
                 ticker,
                 market,
                 action,
@@ -53,117 +79,120 @@ export default function TransactionForm() {
             });
             if (res?.error) setError(res.error);
             else {
-                setSuccess('已新增');
+                setSuccess(`已新增 ${ticker} ${action === 'buy' ? '買進' : '賣出'} ${shares}`);
                 router.refresh();
-                const form = document.getElementById('tx-form') as HTMLFormElement | null;
-                form?.reset();
+                formRef.current?.reset();
+                // restore today as default date and re-focus for rapid entry
+                if (dateRef.current) {
+                    dateRef.current.value = todayTaipeiCompact();
+                    dateRef.current.focus();
+                    dateRef.current.select();
+                }
             }
         });
     }
 
+    const baseInput =
+        'rounded-lg border border-zinc-700 bg-zinc-800 p-2.5 text-white placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none disabled:opacity-50';
+
     return (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">新增交易</h2>
-            <form id="tx-form" action={handleSubmit} className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setMarket('US')}
-                        className={`rounded-lg py-2 text-sm font-medium transition-colors ${market === 'US' ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/40' : 'bg-zinc-800/60 text-zinc-400'}`}
-                    >
-                        美股 (USD)
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMarket('TW')}
-                        className={`rounded-lg py-2 text-sm font-medium transition-colors ${market === 'TW' ? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40' : 'bg-zinc-800/60 text-zinc-400'}`}
-                    >
-                        台股 (TWD)
-                    </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setAction('buy')}
-                        className={`rounded-lg py-2 text-sm font-medium transition-colors ${action === 'buy' ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40' : 'bg-zinc-800/60 text-zinc-400'}`}
-                    >
-                        買進
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setAction('sell')}
-                        className={`rounded-lg py-2 text-sm font-medium transition-colors ${action === 'sell' ? 'bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40' : 'bg-zinc-800/60 text-zinc-400'}`}
-                    >
-                        賣出
-                    </button>
-                </div>
-
+            <form
+                ref={formRef}
+                action={handleSubmit}
+                className="grid grid-cols-[7rem_1fr_3rem_5rem_5rem_auto] items-end gap-2"
+            >
                 <div>
-                    <label className="mb-1 block text-xs text-zinc-400">標的代號</label>
+                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">日期</label>
+                    <input
+                        ref={dateRef}
+                        name="date"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="\d{8}"
+                        maxLength={8}
+                        autoComplete="off"
+                        defaultValue={todayTaipeiCompact()}
+                        placeholder="YYYYMMDD"
+                        required
+                        className={`${baseInput} w-full font-mono text-sm`}
+                    />
+                </div>
+                <div>
+                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">代號</label>
                     <input
                         name="ticker"
                         type="text"
                         autoComplete="off"
-                        placeholder={market === 'US' ? 'AAPL、TSLA…' : '2330、0050…'}
+                        autoCapitalize="characters"
+                        placeholder="2330 / AAPL"
                         required
-                        className="w-full rounded-lg border border-zinc-700 bg-zinc-800 p-2.5 font-mono text-base uppercase text-white focus:border-emerald-500 focus:outline-none"
+                        className={`${baseInput} w-full font-mono text-sm uppercase`}
                     />
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                    <div>
-                        <label className="mb-1 block text-xs text-zinc-400">股數</label>
-                        <input
-                            name="shares"
-                            type="number"
-                            inputMode="decimal"
-                            step="any"
-                            min="0"
-                            required
-                            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 p-2.5 text-white focus:border-emerald-500 focus:outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-1 block text-xs text-zinc-400">單價 ({market === 'US' ? 'USD' : 'TWD'})</label>
-                        <input
-                            name="price"
-                            type="number"
-                            inputMode="decimal"
-                            step="any"
-                            min="0"
-                            required
-                            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 p-2.5 text-white focus:border-emerald-500 focus:outline-none"
-                        />
-                    </div>
-                </div>
-
                 <div>
-                    <label className="mb-1 block text-xs text-zinc-400">交易日期</label>
+                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">B/S</label>
                     <input
-                        name="trade_date"
-                        type="date"
-                        defaultValue={todayTaipei()}
-                        className="w-full rounded-lg border border-zinc-700 bg-zinc-800 p-2.5 text-white focus:border-emerald-500 focus:outline-none"
+                        name="action"
+                        type="text"
+                        maxLength={1}
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        placeholder="B"
+                        required
+                        className={`${baseInput} w-full text-center font-mono text-sm uppercase`}
                     />
                 </div>
-
-                {error && (
-                    <div className="rounded-lg bg-rose-500/10 p-2.5 text-sm text-rose-400 border border-rose-500/20">{error}</div>
-                )}
-                {success && (
-                    <div className="rounded-lg bg-emerald-500/10 p-2.5 text-sm text-emerald-400 border border-emerald-500/20">{success}</div>
-                )}
-
+                <div>
+                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">股數</label>
+                    <input
+                        name="shares"
+                        type="number"
+                        inputMode="numeric"
+                        step="1"
+                        min="1"
+                        required
+                        className={`${baseInput} w-full text-sm`}
+                    />
+                </div>
+                <div>
+                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">單價</label>
+                    <input
+                        name="price"
+                        type="number"
+                        inputMode="decimal"
+                        step="any"
+                        min="0"
+                        required
+                        className={`${baseInput} w-full text-sm`}
+                    />
+                </div>
                 <button
                     type="submit"
                     disabled={isPending}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 p-3 font-semibold text-white transition-colors hover:bg-emerald-500 active:scale-[.98] disabled:opacity-50"
+                    className="flex h-[42px] items-center justify-center gap-1 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 active:scale-[.98] disabled:opacity-50"
                 >
-                    <Plus size={16} />
-                    {isPending ? '送出中…' : '新增'}
+                    <Plus size={14} />
+                    {isPending ? '送出中' : '新增'}
                 </button>
             </form>
+
+            {(error || success) && (
+                <div className="mt-2 text-sm">
+                    {error && (
+                        <span className="rounded-md bg-rose-500/10 px-2 py-1 text-rose-400 border border-rose-500/20">{error}</span>
+                    )}
+                    {success && (
+                        <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-emerald-400 border border-emerald-500/20">{success}</span>
+                    )}
+                </div>
+            )}
+
+            <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
+                順序：<span className="font-mono text-zinc-400">日期 → 代號 → B/S → 股數 → 單價</span>，按 Tab 切換欄位、Enter 送出。
+                市場由代號自動判斷（開頭數字＝台股，字母＝美股）。
+            </p>
         </div>
     );
 }
