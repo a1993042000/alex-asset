@@ -8,8 +8,14 @@ import type { Transaction } from '@/lib/types';
 
 const num4 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4, minimumFractionDigits: 2 });
 const intShares = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+const intTwd = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 });
 
-export default function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
+interface Props {
+    transactions: Transaction[];
+    fxUsdTwd: number;
+}
+
+export default function TransactionsTable({ transactions, fxUsdTwd }: Props) {
     const router = useRouter();
     const [pendingId, setPendingId] = useState<string | null>(null);
     const [, startTransition] = useTransition();
@@ -39,7 +45,10 @@ export default function TransactionsTable({ transactions }: { transactions: Tran
                 交易紀錄（{transactions.length}）
             </div>
             <div className="max-h-[60vh] divide-y divide-zinc-800/60 overflow-y-auto">
-                {transactions.map((t) => (
+                {transactions.map((t) => {
+                    const fx = t.currency === 'USD' ? fxUsdTwd : 1;
+                    const totalTwd = t.shares * t.price * fx;
+                    return (
                     <div key={t.id} className="flex items-center gap-3 px-4 py-3">
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
@@ -56,7 +65,7 @@ export default function TransactionsTable({ transactions }: { transactions: Tran
                             </div>
                         </div>
                         <div className="text-right text-sm font-medium text-zinc-200">
-                            {num4.format(t.shares * t.price)} {t.currency}
+                            {intTwd.format(totalTwd)} TWD
                         </div>
                         <button
                             onClick={() => handleDelete(t.id)}
@@ -67,7 +76,8 @@ export default function TransactionsTable({ transactions }: { transactions: Tran
                             <Trash2 size={16} />
                         </button>
                     </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

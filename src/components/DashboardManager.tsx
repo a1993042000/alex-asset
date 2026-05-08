@@ -83,7 +83,7 @@ export default function DashboardManager({ data }: { data: DashboardData }) {
                         {activeTab === 'transactions' && (
                             <div className="space-y-6">
                                 <TransactionForm />
-                                <TransactionsTable transactions={data.transactions} />
+                                <TransactionsTable transactions={data.transactions} fxUsdTwd={data.fxUsdTwd} />
                             </div>
                         )}
                         {activeTab === 'curves' && (
