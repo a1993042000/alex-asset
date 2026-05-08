@@ -113,25 +113,19 @@ export function buildLatestPriceMap(rows: { ticker: string; date: string; close_
 export const FX_TICKER_NAME = FX_TICKER;
 
 /**
- * TW OTC (上櫃 / 富櫃) tickers — Yahoo expects the .TWO suffix instead of .TW.
- * Add tickers here as you encounter them.
- */
-const TW_OTC_TICKERS = new Set<string>([
-    '006201', // 元大富櫃50
-]);
-
-/**
  * Convert a stock ticker into its yahoo-finance2 query symbol.
  * - US stocks: same symbol (e.g. AAPL)
- * - TW listed stocks: append .TW (e.g. 2330 -> 2330.TW)
- * - TW OTC stocks: append .TWO (see TW_OTC_TICKERS list above)
+ * - TW stocks: append .TW (e.g. 2330 -> 2330.TW)
  * - If the ticker already carries a .TW or .TWO suffix, return as-is.
+ *
+ * For TW OTC (上櫃) tickers, the fetcher in quotes.ts auto-falls back from
+ * .TW to .TWO when the .TW lookup returns stale/archived data, so callers
+ * never need a hardcoded list.
  */
 export function toYahooSymbol(ticker: string, market: 'US' | 'TW'): string {
     const t = ticker.trim().toUpperCase();
     if (market === 'US') return t;
     if (t.endsWith('.TW') || t.endsWith('.TWO')) return t;
-    if (TW_OTC_TICKERS.has(t)) return `${t}.TWO`;
     return `${t}.TW`;
 }
 
