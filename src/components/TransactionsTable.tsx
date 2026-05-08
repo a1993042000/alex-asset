@@ -44,7 +44,7 @@ export default function TransactionsTable({ transactions, fxUsdTwd }: Props) {
             <div className="border-b border-zinc-800 bg-zinc-900/50 px-4 py-3 text-sm font-semibold text-white">
                 交易紀錄（{transactions.length}）
             </div>
-            <div className="max-h-[60vh] divide-y divide-zinc-800/60 overflow-y-auto">
+            <div className="divide-y divide-zinc-800/60">
                 {transactions.map((t) => {
                     const fx = t.currency === 'USD' ? fxUsdTwd : 1;
                     const totalTwd = t.shares * t.price * fx;
