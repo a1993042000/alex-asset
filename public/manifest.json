@@ -4,8 +4,8 @@
     "description": "個人資產追蹤器（美股 + 台股）",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#09090b",
-    "theme_color": "#09090b",
+    "background_color": "#047857",
+    "theme_color": "#047857",
     "icons": [
         {
             "src": "/icon-192x192.png?v=2",
