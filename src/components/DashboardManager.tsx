@@ -59,15 +59,17 @@ export default function DashboardManager({ data }: { data: DashboardData }) {
             </nav>
 
             <div className="flex-1">
-                <main className="mx-auto max-w-3xl px-4 pt-6 pb-24">
+                <main className="mx-auto max-w-5xl px-4 pt-6 pb-24">
                     <SummaryCards
                         marketValueTwd={summary.mv}
                         netInvestedTwd={summary.ni}
                         profitTwd={profit}
                         history={data.history}
-                        pricesAsOf={liveAsOf}
                     />
-                    <div className="mt-3 flex justify-end">
+                    <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
+                        {liveAsOf && (
+                            <span className="text-xs text-zinc-500">報價更新：{liveAsOf}</span>
+                        )}
                         <RefreshButton
                             onUpdate={(positions, asOf) => {
                                 setLivePositions(positions);
