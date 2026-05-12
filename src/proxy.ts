@@ -7,8 +7,10 @@ export function proxy(request: NextRequest) {
     const isPublicPath =
         path === '/login' ||
         path.startsWith('/_next') ||
-        path.startsWith('/manifest.json') ||
-        path.startsWith('/icons/') ||
+        path === '/manifest.json' ||
+        path.startsWith('/icon-') ||      // /icon-192x192.png, /icon-512x512.png
+        path === '/icon.svg' ||
+        path === '/apple-touch-icon.png' ||
         path === '/favicon.ico';
 
     const token = request.cookies.get('auth_token')?.value;
