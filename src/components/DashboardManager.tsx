@@ -64,7 +64,7 @@ export default function DashboardManager({ data }: { data: DashboardData }) {
                         marketValueTwd={summary.mv}
                         netInvestedTwd={summary.ni}
                         profitTwd={profit}
-                        fxUsdTwd={data.fxUsdTwd}
+                        history={data.history}
                         pricesAsOf={liveAsOf}
                     />
                     <div className="mt-3 flex justify-end">

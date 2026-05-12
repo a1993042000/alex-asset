@@ -1,4 +1,4 @@
-import type { PositionRow, Transaction } from './types';
+import type { PortfolioHistoryRow, PositionRow, Transaction } from './types';
 
 const FX_TICKER = 'USDTWD';
 
@@ -111,6 +111,73 @@ export function buildLatestPriceMap(rows: { ticker: string; date: string; close_
 }
 
 export const FX_TICKER_NAME = FX_TICKER;
+
+export interface PeriodStat {
+    pnlTwd: number;
+    returnPct: number;
+    hasData: boolean;
+    baselineDate: string | null;
+}
+
+/**
+ * Period P&L: today's profit minus the profit on the latest snapshot at or
+ * before baselineDate. Return % uses that snapshot's market_value as denom.
+ */
+export function periodStat(
+    todayProfitTwd: number,
+    history: PortfolioHistoryRow[],
+    baselineDate: string,
+): PeriodStat {
+    if (history.length === 0) {
+        return { pnlTwd: 0, returnPct: 0, hasData: false, baselineDate: null };
+    }
+    let baseline: PortfolioHistoryRow | null = null;
+    for (const h of history) {
+        if (h.date <= baselineDate) baseline = h;
+        else break;
+    }
+    if (!baseline) {
+        return { pnlTwd: 0, returnPct: 0, hasData: false, baselineDate: null };
+    }
+    const pnlTwd = todayProfitTwd - Number(baseline.profit_twd);
+    const denom = Number(baseline.market_value_twd);
+    const returnPct = denom > 0 ? (pnlTwd / denom) * 100 : 0;
+    return { pnlTwd, returnPct, hasData: true, baselineDate: baseline.date };
+}
+
+/**
+ * Baseline dates for the six standard periods, computed in Asia/Taipei.
+ *
+ * - 今日:   yesterday's close
+ * - 7/30/60/120 天: N calendar days ago
+ * - YTD:    last day of previous calendar year
+ */
+export function periodBaselines(
+    todayInTaipei = new Date(),
+): { key: 'today' | 'd7' | 'd30' | 'd60' | 'd120' | 'ytd'; label: string; date: string }[] {
+    // Anchor to Asia/Taipei calendar so it matches the snapshot dates.
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+    });
+    const todayStr = fmt.format(todayInTaipei); // YYYY-MM-DD in Taipei
+    const todayDate = new Date(todayStr + 'T00:00:00Z');
+    const back = (days: number) => {
+        const d = new Date(todayDate);
+        d.setUTCDate(d.getUTCDate() - days);
+        return d.toISOString().slice(0, 10);
+    };
+    const year = parseInt(todayStr.slice(0, 4), 10);
+    const yearStart = `${year - 1}-12-31`;
+    return [
+        { key: 'today', label: '今日', date: back(1) },
+        { key: 'd7', label: '7 天', date: back(7) },
+        { key: 'd30', label: '30 天', date: back(30) },
+        { key: 'd60', label: '60 天', date: back(60) },
+        { key: 'd120', label: '120 天', date: back(120) },
+        { key: 'ytd', label: 'YTD', date: yearStart },
+    ];
+}
 
 /**
  * Convert a stock ticker into its yahoo-finance2 query symbol.
