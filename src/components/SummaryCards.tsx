@@ -49,7 +49,7 @@ export default function SummaryCards({ marketValueTwd, netInvestedTwd, profitTwd
             {/* 區間損益 */}
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
                 <div className="text-xs text-zinc-400">區間損益</div>
-                <div className="mt-4 grid grid-cols-3 gap-x-4 gap-y-5 sm:grid-cols-6">
+                <div className="mt-4 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-6 sm:gap-x-4">
                     {periods.map((p) => {
                         const ok = p.stat.hasData;
                         const positive = p.stat.pnlTwd >= 0;
@@ -65,7 +65,7 @@ export default function SummaryCards({ marketValueTwd, netInvestedTwd, profitTwd
                                 title={ok && p.stat.baselineDate ? `自 ${p.stat.baselineDate}` : undefined}
                             >
                                 <div className="text-xs text-zinc-500">{p.label}</div>
-                                <div className={`mt-2 text-lg sm:text-xl font-semibold tabular-nums ${valueColor}`}>
+                                <div className={`mt-2 text-sm sm:text-xl font-semibold tabular-nums ${valueColor}`}>
                                     {ok ? ntdSigned.format(p.stat.pnlTwd) : '—'}
                                 </div>
                                 <div className={`mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium tabular-nums ${pctColor}`}>
