@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import type { PositionRow } from '@/lib/types';
 
 const ntd = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 });
@@ -7,13 +9,63 @@ const ntdSigned = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0, sig
 const num4 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4, minimumFractionDigits: 2 });
 const intShares = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
+type SortKey =
+    | 'ticker'
+    | 'shares'
+    | 'avg_cost'
+    | 'last_price'
+    | 'market_value_twd'
+    | 'profit_twd'
+    | 'return_pct';
+type SortDir = 'asc' | 'desc';
+
 interface Props {
     positions: PositionRow[];
     fxUsdTwd: number;
 }
 
+function returnPctOf(p: PositionRow): number {
+    return p.net_invested_twd > 0 ? (p.profit_twd / p.net_invested_twd) * 100 : 0;
+}
+
 export default function PositionsTable({ positions }: Props) {
-    const visible = positions.filter((p) => Math.abs(p.shares) > 1e-9);
+    const [sortKey, setSortKey] = useState<SortKey>('market_value_twd');
+    const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+    function toggleSort(k: SortKey) {
+        if (sortKey === k) {
+            setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortKey(k);
+            setSortDir(k === 'ticker' ? 'asc' : 'desc');
+        }
+    }
+
+    const visible = useMemo(
+        () => positions.filter((p) => Math.abs(p.shares) > 1e-9),
+        [positions],
+    );
+
+    const sorted = useMemo(() => {
+        const arr = [...visible];
+        arr.sort((a, b) => {
+            let av: number | string;
+            let bv: number | string;
+            switch (sortKey) {
+                case 'ticker':           av = a.ticker;           bv = b.ticker;           break;
+                case 'shares':           av = a.shares;           bv = b.shares;           break;
+                case 'avg_cost':         av = a.avg_cost;         bv = b.avg_cost;         break;
+                case 'last_price':       av = a.last_price ?? -Infinity; bv = b.last_price ?? -Infinity; break;
+                case 'market_value_twd': av = a.market_value_twd; bv = b.market_value_twd; break;
+                case 'profit_twd':       av = a.profit_twd;       bv = b.profit_twd;       break;
+                case 'return_pct':       av = returnPctOf(a);     bv = returnPctOf(b);     break;
+            }
+            if (av < bv) return sortDir === 'asc' ? -1 : 1;
+            if (av > bv) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return arr;
+    }, [visible, sortKey, sortDir]);
 
     if (visible.length === 0) {
         return (
@@ -26,12 +78,71 @@ export default function PositionsTable({ positions }: Props) {
     return (
         <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/30">
             <div className="border-b border-zinc-800 bg-zinc-900/50 px-4 py-3 text-sm font-semibold text-white">
-                持有部位
+                持有部位（{visible.length}）
             </div>
-            <div className="divide-y divide-zinc-800/60">
-                {visible.map((p) => {
+
+            {/* Desktop table view */}
+            <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-zinc-800 text-xs uppercase tracking-wide text-zinc-500">
+                            <Th label="代號" col="ticker" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                            <Th label="股數" col="shares" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                            <Th label="成本" col="avg_cost" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                            <Th label="現價" col="last_price" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                            <Th label="市值 (TWD)" col="market_value_twd" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                            <Th label="損益 (TWD)" col="profit_twd" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                            <Th label="報酬率" col="return_pct" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sorted.map((p) => {
+                            const pct = returnPctOf(p);
+                            const isProfit = p.profit_twd >= 0;
+                            const pnlColor = isProfit ? 'text-emerald-400' : 'text-rose-400';
+                            return (
+                                <tr
+                                    key={`${p.market}:${p.ticker}`}
+                                    className="border-b border-zinc-800/40 hover:bg-zinc-800/40 transition-colors"
+                                >
+                                    <td className="px-3 py-2.5">
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <span className="font-mono font-semibold text-white">{p.ticker}</span>
+                                            <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${p.market === 'US' ? 'bg-blue-500/15 text-blue-300' : 'bg-amber-500/15 text-amber-300'}`}>
+                                                {p.market}
+                                            </span>
+                                        </span>
+                                    </td>
+                                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">{intShares.format(p.shares)}</td>
+                                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-400">
+                                        {num4.format(p.avg_cost)} <span className="text-xs text-zinc-500">{p.currency}</span>
+                                    </td>
+                                    <td className="px-3 py-2.5 text-right tabular-nums text-zinc-300">
+                                        {p.last_price != null
+                                            ? <>{num4.format(p.last_price)} <span className="text-xs text-zinc-500">{p.currency}</span></>
+                                            : <span className="text-zinc-600">—</span>}
+                                    </td>
+                                    <td className="px-3 py-2.5 text-right tabular-nums font-medium text-zinc-100">
+                                        {ntd.format(p.market_value_twd)}
+                                    </td>
+                                    <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${pnlColor}`}>
+                                        {ntdSigned.format(p.profit_twd)}
+                                    </td>
+                                    <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${pnlColor}`}>
+                                        {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Mobile card view */}
+            <div className="md:hidden divide-y divide-zinc-800/60">
+                {sorted.map((p) => {
                     const isProfit = p.profit_twd >= 0;
-                    const pctVal = p.net_invested_twd > 0 ? (p.profit_twd / p.net_invested_twd) * 100 : 0;
+                    const pctVal = returnPctOf(p);
                     return (
                         <div key={`${p.market}:${p.ticker}`} className="px-4 py-3.5">
                             <div className="flex items-center justify-between">
@@ -62,5 +173,30 @@ export default function PositionsTable({ positions }: Props) {
                 })}
             </div>
         </div>
+    );
+}
+
+interface ThProps {
+    label: string;
+    col: SortKey;
+    sortKey: SortKey;
+    sortDir: SortDir;
+    onClick: (k: SortKey) => void;
+    align?: 'left' | 'right';
+}
+
+function Th({ label, col, sortKey, sortDir, onClick, align = 'left' }: ThProps) {
+    const active = sortKey === col;
+    return (
+        <th className={`px-3 py-2.5 font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}>
+            <button
+                type="button"
+                onClick={() => onClick(col)}
+                className={`inline-flex items-center gap-1 transition-colors ${active ? 'text-zinc-200' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >
+                <span>{label}</span>
+                {active && (sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)}
+            </button>
+        </th>
     );
 }
