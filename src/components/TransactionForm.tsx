@@ -88,8 +88,8 @@ export default function TransactionForm() {
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">新增交易</h2>
             <form ref={formRef} action={handleSubmit} className="space-y-3">
-                <div className="grid grid-cols-[7rem_1fr_3rem_5rem_5rem] items-end gap-2">
-                    <div>
+                <div className="grid grid-cols-6 items-end gap-2 sm:grid-cols-[7rem_1fr_3rem_5rem_5rem]">
+                    <div className="col-span-3 sm:col-span-1">
                         <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">日期</label>
                         <input
                             ref={dateRef}
@@ -104,7 +104,7 @@ export default function TransactionForm() {
                             className={`${baseInput} w-full font-mono text-sm`}
                         />
                     </div>
-                    <div>
+                    <div className="col-span-2 sm:col-span-1">
                         <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">代號</label>
                         <input
                             name="ticker"
@@ -116,7 +116,7 @@ export default function TransactionForm() {
                             className={`${baseInput} w-full font-mono text-sm uppercase`}
                         />
                     </div>
-                    <div>
+                    <div className="col-span-1">
                         <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">B/S</label>
                         <input
                             name="action"
@@ -129,7 +129,7 @@ export default function TransactionForm() {
                             className={`${baseInput} w-full text-center font-mono text-sm uppercase`}
                         />
                     </div>
-                    <div>
+                    <div className="col-span-3 sm:col-span-1">
                         <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">股數</label>
                         <input
                             name="shares"
@@ -141,7 +141,7 @@ export default function TransactionForm() {
                             className={`${baseInput} w-full text-sm`}
                         />
                     </div>
-                    <div>
+                    <div className="col-span-3 sm:col-span-1">
                         <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">單價</label>
                         <input
                             name="price"
