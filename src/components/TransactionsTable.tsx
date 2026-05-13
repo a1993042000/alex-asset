@@ -63,6 +63,11 @@ export default function TransactionsTable({ transactions, fxUsdTwd }: Props) {
                             <div className="mt-1 text-xs text-zinc-400">
                                 {t.trade_date} ・ {intShares.format(t.shares)} × {num4.format(t.price)} {t.currency}
                             </div>
+                            {t.note && (
+                                <div className="mt-1 text-xs text-zinc-500 italic">
+                                    “{t.note}”
+                                </div>
+                            )}
                         </div>
                         <div className="text-right text-sm font-medium text-zinc-200">
                             {intTwd.format(totalTwd)} TWD

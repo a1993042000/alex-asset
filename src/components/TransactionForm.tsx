@@ -45,6 +45,7 @@ export default function TransactionForm() {
         const actionStr = (formData.get('action') as string) || '';
         const sharesStr = (formData.get('shares') as string) || '';
         const priceStr = (formData.get('price') as string) || '';
+        const note = ((formData.get('note') as string) || '').trim();
 
         const trade_date = parseCompactDate(dateStr);
         if (!trade_date) return setError('日期格式錯誤（YYYYMMDD）');
@@ -68,6 +69,7 @@ export default function TransactionForm() {
                 shares,
                 price,
                 currency,
+                note: note || undefined,
             });
             if (res?.error) setError(res.error);
             else {
@@ -85,83 +87,95 @@ export default function TransactionForm() {
     return (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-4">
             <h2 className="mb-3 text-sm font-semibold text-white">新增交易</h2>
-            <form
-                ref={formRef}
-                action={handleSubmit}
-                className="grid grid-cols-[7rem_1fr_3rem_5rem_5rem_auto] items-end gap-2"
-            >
-                <div>
-                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">日期</label>
-                    <input
-                        ref={dateRef}
-                        name="date"
-                        type="text"
-                        inputMode="numeric"
-                        pattern="\d{8}"
-                        maxLength={8}
-                        autoComplete="off"
-                        placeholder="YYYYMMDD"
-                        required
-                        className={`${baseInput} w-full font-mono text-sm`}
-                    />
+            <form ref={formRef} action={handleSubmit} className="space-y-3">
+                <div className="grid grid-cols-[7rem_1fr_3rem_5rem_5rem] items-end gap-2">
+                    <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">日期</label>
+                        <input
+                            ref={dateRef}
+                            name="date"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="\d{8}"
+                            maxLength={8}
+                            autoComplete="off"
+                            placeholder="YYYYMMDD"
+                            required
+                            className={`${baseInput} w-full font-mono text-sm`}
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">代號</label>
+                        <input
+                            name="ticker"
+                            type="text"
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            placeholder="2330 / AAPL"
+                            required
+                            className={`${baseInput} w-full font-mono text-sm uppercase`}
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">B/S</label>
+                        <input
+                            name="action"
+                            type="text"
+                            maxLength={1}
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            placeholder="B"
+                            required
+                            className={`${baseInput} w-full text-center font-mono text-sm uppercase`}
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">股數</label>
+                        <input
+                            name="shares"
+                            type="number"
+                            inputMode="numeric"
+                            step="1"
+                            min="1"
+                            required
+                            className={`${baseInput} w-full text-sm`}
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">單價</label>
+                        <input
+                            name="price"
+                            type="number"
+                            inputMode="decimal"
+                            step="any"
+                            min="0"
+                            required
+                            className={`${baseInput} w-full text-sm`}
+                        />
+                    </div>
                 </div>
-                <div>
-                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">代號</label>
-                    <input
-                        name="ticker"
-                        type="text"
-                        autoComplete="off"
-                        autoCapitalize="characters"
-                        placeholder="2330 / AAPL"
-                        required
-                        className={`${baseInput} w-full font-mono text-sm uppercase`}
-                    />
+
+                <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                        <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">備註（買入原因 / 邏輯，選填）</label>
+                        <input
+                            name="note"
+                            type="text"
+                            autoComplete="off"
+                            maxLength={500}
+                            placeholder="例如：技術面突破、降息預期、長期 dca…"
+                            className={`${baseInput} w-full text-sm`}
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={isPending}
+                        className="flex h-[42px] items-center justify-center gap-1 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 active:scale-[.98] disabled:opacity-50"
+                    >
+                        <Plus size={14} />
+                        {isPending ? '送出中' : '新增'}
+                    </button>
                 </div>
-                <div>
-                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">B/S</label>
-                    <input
-                        name="action"
-                        type="text"
-                        maxLength={1}
-                        autoComplete="off"
-                        autoCapitalize="characters"
-                        placeholder="B"
-                        required
-                        className={`${baseInput} w-full text-center font-mono text-sm uppercase`}
-                    />
-                </div>
-                <div>
-                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">股數</label>
-                    <input
-                        name="shares"
-                        type="number"
-                        inputMode="numeric"
-                        step="1"
-                        min="1"
-                        required
-                        className={`${baseInput} w-full text-sm`}
-                    />
-                </div>
-                <div>
-                    <label className="mb-1 block text-[10px] uppercase tracking-wide text-zinc-500">單價</label>
-                    <input
-                        name="price"
-                        type="number"
-                        inputMode="decimal"
-                        step="any"
-                        min="0"
-                        required
-                        className={`${baseInput} w-full text-sm`}
-                    />
-                </div>
-                <button
-                    type="submit"
-                    disabled={isPending}
-                    className="flex h-[42px] items-center justify-center gap-1 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 active:scale-[.98] disabled:opacity-50"
-                >
-                    <Plus size={14} />
-                    {isPending ? '送出中' : '新增'}
-                </button>
             </form>
 
             {(error || success) && (
