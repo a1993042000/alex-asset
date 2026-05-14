@@ -7,7 +7,12 @@ import type { PositionRow } from '@/lib/types';
 const ntd = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 });
 const ntdSigned = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0, signDisplay: 'exceptZero' });
 const num4 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4, minimumFractionDigits: 2 });
+const num2 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 const intShares = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+
+function formatPrice(n: number, currency: 'USD' | 'TWD'): string {
+    return currency === 'USD' ? `$${num2.format(n)}` : `${num2.format(n)} TWD`;
+}
 
 type SortKey =
     | 'ticker'
@@ -149,43 +154,53 @@ export default function PositionsTable({ positions }: Props) {
                 </table>
             </div>
 
-            {/* Mobile card view */}
+            {/* Mobile card view — 3-row layout */}
             <div className="md:hidden divide-y divide-zinc-800/60">
                 {sorted.map((p) => {
                     const isProfit = p.unrealized_profit_twd >= 0;
                     const pctVal = returnPctOf(p);
                     const hasRealized = Math.abs(p.realized_profit_twd) > 0.5;
-                    const realColor = p.realized_profit_twd >= 0 ? 'text-emerald-400/80' : 'text-rose-400/80';
+                    const unrealColor = isProfit ? 'text-emerald-400' : 'text-rose-400';
+                    const unrealPctColor = isProfit ? 'text-emerald-400/70' : 'text-rose-400/70';
+                    const realColor = p.realized_profit_twd >= 0 ? 'text-emerald-300' : 'text-rose-300';
+                    const pctStr = `${pctVal >= 0 ? '+' : ''}${pctVal.toFixed(2)}%`;
                     return (
                         <div key={`${p.market}:${p.ticker}`} className="px-4 py-3.5">
-                            <div className="flex items-center justify-between">
+                            {/* Row 1 — identity + market value */}
+                            <div className="flex items-baseline justify-between gap-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-mono text-base font-semibold text-white">{p.ticker}</span>
+                                    <span className="font-mono text-lg font-bold text-white">{p.ticker}</span>
                                     <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${p.market === 'US' ? 'bg-blue-500/15 text-blue-300' : 'bg-amber-500/15 text-amber-300'}`}>
                                         {p.market}
                                     </span>
                                 </div>
-                                <div className="text-right">
-                                    <div className="text-base font-semibold text-white">NT$ {ntd.format(p.market_value_twd)}</div>
-                                    <div className={`text-sm font-medium ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                        {ntdSigned.format(p.unrealized_profit_twd)}
-                                        <span className="ml-1 text-xs text-zinc-500">({pctVal.toFixed(2)}%)</span>
-                                    </div>
+                                <div className="text-lg font-bold text-white tabular-nums">
+                                    NT$ {ntd.format(p.market_value_twd)}
                                 </div>
                             </div>
-                            <div className="mt-1.5 flex justify-between text-xs text-zinc-500">
-                                <div>
-                                    {intShares.format(p.shares)} 股 × {p.last_price != null ? num4.format(p.last_price) : '—'} {p.currency}
-                                </div>
-                                <div>
-                                    成本 {num4.format(p.avg_cost)} {p.currency}
-                                </div>
+
+                            {/* Row 2 — P&L (unrealized · realized) */}
+                            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-sm tabular-nums">
+                                <span className="text-zinc-500">未實現</span>
+                                <span className={`font-semibold ${unrealColor}`}>{ntdSigned.format(p.unrealized_profit_twd)}</span>
+                                <span className={unrealPctColor}>({pctStr})</span>
+                                {hasRealized && (
+                                    <>
+                                        <span className="text-zinc-700">·</span>
+                                        <span className="text-zinc-500">已實現</span>
+                                        <span className={`font-semibold ${realColor}`}>{ntdSigned.format(p.realized_profit_twd)}</span>
+                                    </>
+                                )}
                             </div>
-                            {hasRealized && (
-                                <div className="mt-1 text-xs text-zinc-500">
-                                    已實現 <span className={`font-medium tabular-nums ${realColor}`}>{ntdSigned.format(p.realized_profit_twd)}</span>
-                                </div>
-                            )}
+
+                            {/* Row 3 — supporting details */}
+                            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 text-xs tabular-nums text-zinc-500">
+                                <span><span className="text-zinc-300">{intShares.format(p.shares)}</span> 股</span>
+                                <span className="text-zinc-700">·</span>
+                                <span>成本 <span className="text-zinc-300">{formatPrice(p.avg_cost, p.currency)}</span></span>
+                                <span className="text-zinc-700">·</span>
+                                <span>現價 <span className="text-zinc-300">{p.last_price != null ? formatPrice(p.last_price, p.currency) : '—'}</span></span>
+                            </div>
                         </div>
                     );
                 })}
