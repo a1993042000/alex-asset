@@ -179,17 +179,17 @@ export default function PositionsTable({ positions }: Props) {
                                 </div>
                             </div>
 
-                            {/* Row 2 — P&L (unrealized · realized) */}
-                            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-sm tabular-nums">
-                                <span className="text-zinc-500">未實現</span>
-                                <span className={`font-semibold ${unrealColor}`}>{ntdSigned.format(p.unrealized_profit_twd)}</span>
-                                <span className={unrealPctColor}>({pctStr})</span>
+                            {/* Row 2 — P&L (unrealized left · realized right) */}
+                            <div className="mt-1.5 flex items-baseline justify-between gap-x-3 tabular-nums">
+                                <div className="whitespace-nowrap text-sm">
+                                    <span className={`font-semibold ${unrealColor}`}>{ntdSigned.format(p.unrealized_profit_twd)}</span>
+                                    <span className={`ml-1 ${unrealPctColor}`}>({pctStr})</span>
+                                </div>
                                 {hasRealized && (
-                                    <>
-                                        <span className="text-zinc-700">·</span>
-                                        <span className="text-zinc-500">已實現</span>
+                                    <div className="whitespace-nowrap text-xs">
+                                        <span className="text-zinc-500">已實現 </span>
                                         <span className={`font-semibold ${realColor}`}>{ntdSigned.format(p.realized_profit_twd)}</span>
-                                    </>
+                                    </div>
                                 )}
                             </div>
 
