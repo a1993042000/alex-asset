@@ -15,7 +15,8 @@ type SortKey =
     | 'avg_cost'
     | 'last_price'
     | 'market_value_twd'
-    | 'profit_twd'
+    | 'unrealized_profit_twd'
+    | 'realized_profit_twd'
     | 'return_pct';
 type SortDir = 'asc' | 'desc';
 
@@ -25,7 +26,8 @@ interface Props {
 }
 
 function returnPctOf(p: PositionRow): number {
-    return p.net_invested_twd > 0 ? (p.profit_twd / p.net_invested_twd) * 100 : 0;
+    if (p.last_price == null || p.avg_cost <= 0) return 0;
+    return ((p.last_price - p.avg_cost) / p.avg_cost) * 100;
 }
 
 export default function PositionsTable({ positions }: Props) {
@@ -52,13 +54,14 @@ export default function PositionsTable({ positions }: Props) {
             let av: number | string;
             let bv: number | string;
             switch (sortKey) {
-                case 'ticker':           av = a.ticker;           bv = b.ticker;           break;
-                case 'shares':           av = a.shares;           bv = b.shares;           break;
-                case 'avg_cost':         av = a.avg_cost;         bv = b.avg_cost;         break;
-                case 'last_price':       av = a.last_price ?? -Infinity; bv = b.last_price ?? -Infinity; break;
-                case 'market_value_twd': av = a.market_value_twd; bv = b.market_value_twd; break;
-                case 'profit_twd':       av = a.profit_twd;       bv = b.profit_twd;       break;
-                case 'return_pct':       av = returnPctOf(a);     bv = returnPctOf(b);     break;
+                case 'ticker':                 av = a.ticker;                 bv = b.ticker;                 break;
+                case 'shares':                 av = a.shares;                 bv = b.shares;                 break;
+                case 'avg_cost':               av = a.avg_cost;               bv = b.avg_cost;               break;
+                case 'last_price':             av = a.last_price ?? -Infinity; bv = b.last_price ?? -Infinity; break;
+                case 'market_value_twd':       av = a.market_value_twd;       bv = b.market_value_twd;       break;
+                case 'unrealized_profit_twd':  av = a.unrealized_profit_twd;  bv = b.unrealized_profit_twd;  break;
+                case 'realized_profit_twd':    av = a.realized_profit_twd;    bv = b.realized_profit_twd;    break;
+                case 'return_pct':             av = returnPctOf(a);           bv = returnPctOf(b);           break;
             }
             if (av < bv) return sortDir === 'asc' ? -1 : 1;
             if (av > bv) return sortDir === 'asc' ? 1 : -1;
@@ -91,15 +94,20 @@ export default function PositionsTable({ positions }: Props) {
                             <Th label="成本" col="avg_cost" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                             <Th label="現價" col="last_price" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                             <Th label="市值 (TWD)" col="market_value_twd" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
-                            <Th label="損益 (TWD)" col="profit_twd" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                            <Th label="未實現 (TWD)" col="unrealized_profit_twd" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                             <Th label="報酬率" col="return_pct" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
+                            <Th label="已實現 (TWD)" col="realized_profit_twd" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} align="right" />
                         </tr>
                     </thead>
                     <tbody>
                         {sorted.map((p) => {
                             const pct = returnPctOf(p);
-                            const isProfit = p.profit_twd >= 0;
-                            const pnlColor = isProfit ? 'text-emerald-400' : 'text-rose-400';
+                            const unrealColor = p.unrealized_profit_twd >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                            const realColor = p.realized_profit_twd > 0
+                                ? 'text-emerald-400'
+                                : p.realized_profit_twd < 0
+                                    ? 'text-rose-400'
+                                    : 'text-zinc-600';
                             return (
                                 <tr
                                     key={`${p.market}:${p.ticker}`}
@@ -125,11 +133,14 @@ export default function PositionsTable({ positions }: Props) {
                                     <td className="px-3 py-2.5 text-right tabular-nums font-medium text-zinc-100">
                                         {ntd.format(p.market_value_twd)}
                                     </td>
-                                    <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${pnlColor}`}>
-                                        {ntdSigned.format(p.profit_twd)}
+                                    <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${unrealColor}`}>
+                                        {ntdSigned.format(p.unrealized_profit_twd)}
                                     </td>
-                                    <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${pnlColor}`}>
+                                    <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${unrealColor}`}>
                                         {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+                                    </td>
+                                    <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${realColor}`}>
+                                        {p.realized_profit_twd === 0 ? '—' : ntdSigned.format(p.realized_profit_twd)}
                                     </td>
                                 </tr>
                             );
@@ -141,8 +152,10 @@ export default function PositionsTable({ positions }: Props) {
             {/* Mobile card view */}
             <div className="md:hidden divide-y divide-zinc-800/60">
                 {sorted.map((p) => {
-                    const isProfit = p.profit_twd >= 0;
+                    const isProfit = p.unrealized_profit_twd >= 0;
                     const pctVal = returnPctOf(p);
+                    const hasRealized = Math.abs(p.realized_profit_twd) > 0.5;
+                    const realColor = p.realized_profit_twd >= 0 ? 'text-emerald-400/80' : 'text-rose-400/80';
                     return (
                         <div key={`${p.market}:${p.ticker}`} className="px-4 py-3.5">
                             <div className="flex items-center justify-between">
@@ -155,7 +168,7 @@ export default function PositionsTable({ positions }: Props) {
                                 <div className="text-right">
                                     <div className="text-base font-semibold text-white">NT$ {ntd.format(p.market_value_twd)}</div>
                                     <div className={`text-sm font-medium ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                        {ntdSigned.format(p.profit_twd)}
+                                        {ntdSigned.format(p.unrealized_profit_twd)}
                                         <span className="ml-1 text-xs text-zinc-500">({pctVal.toFixed(2)}%)</span>
                                     </div>
                                 </div>
@@ -168,6 +181,11 @@ export default function PositionsTable({ positions }: Props) {
                                     成本 {num4.format(p.avg_cost)} {p.currency}
                                 </div>
                             </div>
+                            {hasRealized && (
+                                <div className="mt-1 text-xs text-zinc-500">
+                                    已實現 <span className={`font-medium tabular-nums ${realColor}`}>{ntdSigned.format(p.realized_profit_twd)}</span>
+                                </div>
+                            )}
                         </div>
                     );
                 })}

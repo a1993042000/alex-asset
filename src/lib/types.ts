@@ -33,12 +33,14 @@ export interface PositionRow {
     ticker: string;
     market: Market;
     currency: Currency;
-    shares: number;            // current net shares held
-    avg_cost: number;          // total cost / total bought shares (in original currency)
-    last_price: number | null; // latest close in original currency
+    shares: number;                  // current net shares held
+    avg_cost: number;                // FIFO avg cost of remaining lots (original currency)
+    last_price: number | null;       // latest close in original currency
     market_value_twd: number;
-    net_invested_twd: number;  // (buy − sell) cumulative in TWD using current FX
-    profit_twd: number;        // market_value − net_invested
+    net_invested_twd: number;        // (buy − sell) cumulative in TWD using current FX
+    realized_profit_twd: number;     // realized P&L from FIFO-matched sells, in TWD
+    unrealized_profit_twd: number;   // (last_price − avg_cost) × shares × FX
+    profit_twd: number;              // realized + unrealized (≡ market_value − net_invested)
 }
 
 export interface DashboardData {

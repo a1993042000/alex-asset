@@ -9,12 +9,17 @@ export interface ComputeInput {
 }
 
 /**
- * Aggregate transactions by ticker into PositionRow[] using the
- * net-cash-flow profit method (no FIFO, no average cost basis).
+ * Aggregate transactions by ticker into PositionRow[] using FIFO lot matching.
  *
- *   profit = current market value + cumulative sells − cumulative buys
+ *   - avg_cost     : weighted average of remaining FIFO lots (after sells)
+ *   - realized P&L : Σ(sell_price − lot_cost) × take, accumulated as sells deplete lots
+ *   - unrealized   : (last_price − avg_cost) × remaining_shares
+ *   - profit_twd   : realized + unrealized (mathematically ≡ market_value − net_invested)
  *
  * All TWD-denominated outputs use the latest FX rate for USD ⇄ TWD.
+ * Over-sells (sells exceeding accumulated buys) leave the remaining FIFO lots
+ * empty; the excess is treated as a zero-cost realized event so the books still
+ * balance against the cash-flow method.
  */
 export function computePositions(input: ComputeInput): PositionRow[] {
     const { transactions, latestPrices, fxUsdTwd } = input;
@@ -32,31 +37,61 @@ export function computePositions(input: ComputeInput): PositionRow[] {
         const market = first.market;
         const currency = first.currency;
 
-        let shares = 0;
-        let totalBoughtShares = 0;
-        let totalBoughtAmount = 0;
-        let netCashflow = 0; // sells − buys (in original currency)
+        // FIFO processing requires chronological order; tie-break by created_at
+        // so multiple intra-day txns still match in entry order.
+        const ordered = [...txs].sort((a, b) => {
+            if (a.trade_date !== b.trade_date) return a.trade_date < b.trade_date ? -1 : 1;
+            return a.created_at < b.created_at ? -1 : 1;
+        });
 
-        for (const t of txs) {
+        const lots: { shares: number; price: number }[] = [];
+        let shares = 0;
+        let netCashflow = 0;       // sells − buys (in original currency)
+        let realizedLocal = 0;     // FIFO realized P&L in original currency
+
+        for (const t of ordered) {
             const amount = t.shares * t.price;
             if (t.action === 'buy') {
                 shares += t.shares;
-                totalBoughtShares += t.shares;
-                totalBoughtAmount += amount;
                 netCashflow -= amount;
+                lots.push({ shares: t.shares, price: t.price });
             } else {
                 shares -= t.shares;
                 netCashflow += amount;
+                let remaining = t.shares;
+                while (remaining > 1e-9 && lots.length > 0) {
+                    const lot = lots[0];
+                    const take = Math.min(lot.shares, remaining);
+                    realizedLocal += take * (t.price - lot.price);
+                    lot.shares -= take;
+                    remaining -= take;
+                    if (lot.shares <= 1e-9) lots.shift();
+                }
+                // If `remaining > 0`, this is an over-sell. Treat the excess as a
+                // zero-cost realized credit so realized+unrealized still equals
+                // the cash-flow profit. (Realistically you can't sell what you
+                // don't own; this branch keeps the math consistent for bad data.)
+                if (remaining > 1e-9) {
+                    realizedLocal += remaining * t.price;
+                }
             }
         }
+
+        const remainingShares = lots.reduce((s, l) => s + l.shares, 0);
+        const remainingCost = lots.reduce((s, l) => s + l.shares * l.price, 0);
+        const avgCost = remainingShares > 1e-9 ? remainingCost / remainingShares : 0;
 
         const lastPrice = latestPrices.get(ticker) ?? null;
         const fx = currency === 'USD' ? fxUsdTwd : 1;
         const marketValueLocal = lastPrice != null ? shares * lastPrice : 0;
         const marketValueTwd = marketValueLocal * fx;
-        const netInvestedTwd = -netCashflow * fx;       // (buys − sells) in TWD
-        const profitTwd = marketValueTwd - netInvestedTwd;
-        const avgCost = totalBoughtShares > 0 ? totalBoughtAmount / totalBoughtShares : 0;
+        const netInvestedTwd = -netCashflow * fx;
+        const unrealizedLocal = lastPrice != null && remainingShares > 1e-9
+            ? (lastPrice - avgCost) * remainingShares
+            : 0;
+        const unrealizedTwd = unrealizedLocal * fx;
+        const realizedTwd = realizedLocal * fx;
+        const profitTwd = unrealizedTwd + realizedTwd;
 
         out.push({
             ticker,
@@ -67,6 +102,8 @@ export function computePositions(input: ComputeInput): PositionRow[] {
             last_price: lastPrice,
             market_value_twd: marketValueTwd,
             net_invested_twd: netInvestedTwd,
+            realized_profit_twd: realizedTwd,
+            unrealized_profit_twd: unrealizedTwd,
             profit_twd: profitTwd,
         });
     }
