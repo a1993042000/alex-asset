@@ -193,12 +193,10 @@ export default function PositionsTable({ positions }: Props) {
                                 )}
                             </div>
 
-                            {/* Row 3 — supporting details */}
-                            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 text-xs tabular-nums text-zinc-500">
+                            {/* Row 3 — supporting details (left · center · right) */}
+                            <div className="mt-1 flex items-baseline justify-between gap-x-2 text-xs tabular-nums text-zinc-500">
                                 <span><span className="text-zinc-300">{intShares.format(p.shares)}</span> 股</span>
-                                <span className="text-zinc-700">·</span>
                                 <span>成本 <span className="text-zinc-300">{formatPrice(p.avg_cost, p.currency)}</span></span>
-                                <span className="text-zinc-700">·</span>
                                 <span>現價 <span className="text-zinc-300">{p.last_price != null ? formatPrice(p.last_price, p.currency) : '—'}</span></span>
                             </div>
                         </div>
