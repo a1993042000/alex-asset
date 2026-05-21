@@ -60,7 +60,7 @@ export default function NetValueChart({ history }: { history: PortfolioHistoryRo
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                         <XAxis dataKey="date" stroke="#71717a" fontSize={11} ticks={ticks} tickFormatter={fmtMonth} />
-                        <YAxis stroke="#71717a" fontSize={11} width={36} tickFormatter={fmtMillion} />
+                        <YAxis stroke="#71717a" fontSize={11} width={36} domain={['auto', 'auto']} tickFormatter={fmtMillion} />
                         <Tooltip
                             contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8 }}
                             labelStyle={{ color: '#a1a1aa' }}
