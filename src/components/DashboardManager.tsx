@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { LayoutGrid, List, LineChart as LineChartIcon } from 'lucide-react';
 import type { DashboardData } from '@/lib/types';
 import SummaryCards from './SummaryCards';
@@ -13,11 +13,41 @@ import RefreshButton from './RefreshButton';
 import BackfillButton from './BackfillButton';
 
 type TabType = 'positions' | 'transactions' | 'curves';
+type ChartPeriod = '30d' | '60d' | '120d' | 'ytd' | 'all';
+
+const PERIOD_BUTTONS: { id: ChartPeriod; label: string }[] = [
+    { id: '30d', label: '30天' },
+    { id: '60d', label: '60天' },
+    { id: '120d', label: '120天' },
+    { id: 'ytd', label: 'YTD' },
+    { id: 'all', label: 'ALL' },
+];
+
+function periodCutoff(period: ChartPeriod): string | null {
+    if (period === 'all') return null;
+    const now = new Date();
+    if (period === 'ytd') {
+        return `${now.getFullYear()}-01-01`;
+    }
+    const days = period === '30d' ? 30 : period === '60d' ? 60 : 120;
+    const d = new Date(now);
+    d.setDate(d.getDate() - days);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
 
 export default function DashboardManager({ data }: { data: DashboardData }) {
     const [activeTab, setActiveTab] = useState<TabType>('positions');
+    const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('120d');
     const [livePositions, setLivePositions] = useState(data.positions);
     const [liveAsOf, setLiveAsOf] = useState<string | null>(data.pricesAsOf);
+
+    const chartHistory = useMemo(() => {
+        const cutoff = periodCutoff(chartPeriod);
+        return cutoff ? data.history.filter(h => h.date >= cutoff) : data.history;
+    }, [data.history, chartPeriod]);
 
     const tabs = [
         { id: 'positions' as TabType, name: '持有部位', icon: <LayoutGrid size={18} /> },
@@ -90,8 +120,25 @@ export default function DashboardManager({ data }: { data: DashboardData }) {
                         )}
                         {activeTab === 'curves' && (
                             <div className="space-y-6">
-                                <NetValueChart history={data.history} />
-                                <ProfitChart history={data.history} />
+                                <div className="flex flex-wrap gap-2">
+                                    {PERIOD_BUTTONS.map(({ id, label }) => {
+                                        const active = chartPeriod === id;
+                                        return (
+                                            <button
+                                                key={id}
+                                                onClick={() => setChartPeriod(id)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${active
+                                                    ? 'bg-zinc-700 text-white'
+                                                    : 'bg-zinc-900/60 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                                                    }`}
+                                            >
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <NetValueChart history={chartHistory} />
+                                <ProfitChart history={chartHistory} />
                                 <div className="flex justify-end">
                                     <BackfillButton />
                                 </div>
