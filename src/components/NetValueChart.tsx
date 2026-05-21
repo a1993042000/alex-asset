@@ -5,6 +5,18 @@ import type { PortfolioHistoryRow } from '@/lib/types';
 
 const ntd = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 });
 
+// Y axis: NT$ -> M (millions). Hide decimals when the tick is an integer million.
+const fmtMillion = (v: number) => {
+    const m = v / 1_000_000;
+    return Number.isInteger(m) ? `${m}M` : `${m.toFixed(1)}M`;
+};
+
+// X axis: keep year info but stay compact. "2026-05-21" -> "26/05/21".
+const fmtDate = (s: string) => {
+    const [y, m, d] = s.split('-');
+    return `${y.slice(2)}/${m}/${d}`;
+};
+
 export default function NetValueChart({ history }: { history: PortfolioHistoryRow[] }) {
     if (history.length === 0) {
         return (
@@ -15,7 +27,7 @@ export default function NetValueChart({ history }: { history: PortfolioHistoryRo
     }
 
     const data = history.map((h) => ({
-        date: h.date.slice(5),
+        date: h.date,
         value: Number(h.market_value_twd) || 0,
     }));
 
@@ -32,8 +44,8 @@ export default function NetValueChart({ history }: { history: PortfolioHistoryRo
                             </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis dataKey="date" stroke="#71717a" fontSize={11} />
-                        <YAxis stroke="#71717a" fontSize={11} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                        <XAxis dataKey="date" stroke="#71717a" fontSize={11} tickFormatter={fmtDate} />
+                        <YAxis stroke="#71717a" fontSize={11} width={36} tickFormatter={fmtMillion} />
                         <Tooltip
                             contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8 }}
                             labelStyle={{ color: '#a1a1aa' }}
