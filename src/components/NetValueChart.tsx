@@ -11,10 +11,24 @@ const fmtMillion = (v: number) => {
     return Number.isInteger(m) ? `${m}M` : `${m.toFixed(1)}M`;
 };
 
-// X axis: keep year info but stay compact. "2026-05-21" -> "26/05/21".
-const fmtDate = (s: string) => {
-    const [y, m, d] = s.split('-');
-    return `${y.slice(2)}/${m}/${d}`;
+// X axis label: "2026-05-..." -> "26/05" (year + month only)
+const fmtMonth = (s: string) => {
+    const [y, m] = s.split('-');
+    return `${y.slice(2)}/${m}`;
+};
+
+// Pick one tick per month (first date of each month present in the data).
+const monthTicks = (rows: { date: string }[]) => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const r of rows) {
+        const ym = r.date.slice(0, 7);
+        if (!seen.has(ym)) {
+            seen.add(ym);
+            out.push(r.date);
+        }
+    }
+    return out;
 };
 
 export default function NetValueChart({ history }: { history: PortfolioHistoryRow[] }) {
@@ -30,6 +44,7 @@ export default function NetValueChart({ history }: { history: PortfolioHistoryRo
         date: h.date,
         value: Number(h.market_value_twd) || 0,
     }));
+    const ticks = monthTicks(data);
 
     return (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-4">
@@ -44,7 +59,7 @@ export default function NetValueChart({ history }: { history: PortfolioHistoryRo
                             </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis dataKey="date" stroke="#71717a" fontSize={11} tickFormatter={fmtDate} />
+                        <XAxis dataKey="date" stroke="#71717a" fontSize={11} ticks={ticks} tickFormatter={fmtMonth} />
                         <YAxis stroke="#71717a" fontSize={11} width={36} tickFormatter={fmtMillion} />
                         <Tooltip
                             contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8 }}

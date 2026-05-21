@@ -10,9 +10,22 @@ const fmtMillion = (v: number) => {
     return Number.isInteger(m) ? `${m}M` : `${m.toFixed(1)}M`;
 };
 
-const fmtDate = (s: string) => {
-    const [y, m, d] = s.split('-');
-    return `${y.slice(2)}/${m}/${d}`;
+const fmtMonth = (s: string) => {
+    const [y, m] = s.split('-');
+    return `${y.slice(2)}/${m}`;
+};
+
+const monthTicks = (rows: { date: string }[]) => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const r of rows) {
+        const ym = r.date.slice(0, 7);
+        if (!seen.has(ym)) {
+            seen.add(ym);
+            out.push(r.date);
+        }
+    }
+    return out;
 };
 
 export default function ProfitChart({ history }: { history: PortfolioHistoryRow[] }) {
@@ -28,6 +41,7 @@ export default function ProfitChart({ history }: { history: PortfolioHistoryRow[
         date: h.date,
         profit: Number(h.profit_twd) || 0,
     }));
+    const ticks = monthTicks(data);
 
     return (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-4">
@@ -42,7 +56,7 @@ export default function ProfitChart({ history }: { history: PortfolioHistoryRow[
                             </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis dataKey="date" stroke="#71717a" fontSize={11} tickFormatter={fmtDate} />
+                        <XAxis dataKey="date" stroke="#71717a" fontSize={11} ticks={ticks} tickFormatter={fmtMonth} />
                         <YAxis stroke="#71717a" fontSize={11} width={36} tickFormatter={fmtMillion} />
                         <ReferenceLine y={0} stroke="#52525b" strokeDasharray="2 4" />
                         <Tooltip
