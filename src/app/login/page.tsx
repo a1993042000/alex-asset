@@ -40,7 +40,7 @@ export default function LoginPage() {
                         <input
                             id="password"
                             name="password"
-                            type="password"
+                            type="text"
                             required
                             className="w-full rounded-xl border border-zinc-700 bg-zinc-800 p-3.5 text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                             placeholder="輸入密碼"

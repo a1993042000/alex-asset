@@ -30,7 +30,7 @@ export async function login(formData: FormData) {
     ) {
         const cookieStore = await cookies();
         cookieStore.set('auth_token', 'authenticated', {
-            maxAge: 30 * 24 * 60 * 60,
+            maxAge: 365 * 24 * 60 * 60, // 1 year
             path: '/',
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
