@@ -112,7 +112,14 @@ async function tryWithTwFallback<T>(
     fetcher: (symbol: string) => Promise<T | null | undefined>,
     isEmpty: (v: T | null | undefined) => boolean,
 ): Promise<T | null> {
-    const first = await fetcher(primarySymbol);
+    // Yahoo now answers 404 (instead of a stale YHD row) for OTC tickers
+    // queried as `.TW`, which throws — treat that as empty so `.TWO` is tried.
+    let first: T | null | undefined = null;
+    try {
+        first = await fetcher(primarySymbol);
+    } catch (e) {
+        if (!primarySymbol.endsWith('.TW')) throw e;
+    }
     if (!isEmpty(first)) return first as T;
     if (primarySymbol.endsWith('.TW')) {
         const alt = primarySymbol.slice(0, -3) + '.TWO';
